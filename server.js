@@ -36,6 +36,7 @@ const odoo = new Odoo({
 });
 
 const DbApi = require('./lib/db-api');
+const Secure = require('./lib/secure');
 
 const corsOptions = {
 	origin: (origin, callback) => {
@@ -77,6 +78,8 @@ app.get('/', function (req, res) {
 	return res.send({ error: true, message: 'hello' })
 });
 
+const secure = new Secure(process.env['TOKEN_SECRET']);
+
 const dbapi = new DbApi();
 dbapi.connect(process.env['MYSQL_HOST'], process.env['MYSQL_USER'], process.env['MYSQL_PWD'], process.env['MYSQL_DB']);
 
@@ -96,7 +99,8 @@ app.post('/login', function (req, res) {
 		bank: null,
 		childs: [],
 		contador_fallos: 0,
-		ultimo_acceso: null
+		ultimo_acceso: null,
+		token: null
 	};
 
 	var sql = "SELECT * from usuarios WHERE username = '" + req.body.username + "'";
@@ -189,6 +193,7 @@ app.post('/login', function (req, res) {
 
 									dbapi.okAccess(titular);
 
+									titular.token = secure.createToken(titular);
 									return res.send({ error: false, data: titular, message: 'success' });
 								});
 							});
@@ -201,6 +206,9 @@ app.post('/login', function (req, res) {
 });
 
 app.post('/get_month', function (req, res) {
+
+	if (!secure.ensureAuthenticated(req, res, req.body.student_id))
+		return res.send({ error: true, message: 'Error de autorización, token no válido' });
 
 	odoo.connect(function (err) {
 		if (err) return res.send({ error: true, data: err, message: 'Error conexión con backend' });
@@ -250,6 +258,9 @@ app.post('/get_preaviso', function (req, res) {
 
 app.post('/get_asistencia', function (req, res) {
 
+	if (!secure.ensureAuthenticated(req, res, req.body.child_id))
+		return res.send({ error: true, message: 'Error de autorización, token no válido' });
+
 	odoo.connect(function (err) {
 		if (err) return res.send({ error: true, data: err, message: 'Error conexión con backend' });
 
@@ -271,6 +282,9 @@ app.post('/get_asistencia', function (req, res) {
 });
 
 app.post('/set_asistencia', function (req, res) {
+
+	if (!secure.ensureAuthenticated(req, res, req.body.childId))
+		return res.send({ error: true, message: 'Error de autorización, token no válido' });
 
 	odoo.connect(function (err) {
 		if (err) return res.send({ error: true, data: err, message: 'Error conexión con backend' });
@@ -323,6 +337,9 @@ app.post('/set_day', function (req, res) {
 });
 
 app.post('/set_bank', function (req, res) {
+
+	if (!secure.ensureAuthenticated(req, res, req.body.parentId))
+		return res.send({ error: true, message: 'Error de autorización, token no válido' });
 
 	odoo.connect(function (err) {
 		if (err) return res.send({ error: true, data: err, message: 'Error conexión con backend' });
